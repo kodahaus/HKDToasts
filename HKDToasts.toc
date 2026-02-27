@@ -1,0 +1,21 @@
+## Interface: 120001
+## Title: HKDToasts
+## Notes: Clean toast notifications. Type /hkdt or /hkdtoasts for config. 
+## Author: Hakoda
+## Version: 1.1.0
+## SavedVariables: HKDToastsDB
+## IconTexture: Interface\AddOns\HKDToasts\Media\Icons\toast.tga
+## Category: UI Enhancements
+## OptionalDeps: LibSharedMedia-3.0
+
+libs\LibStub\LibStub.lua
+libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
+libs\LibSharedMedia-3.0\LibSharedMedia-3.0.lua
+Libs\LibDBIcon-1.0\LibDBIcon-1.0.lua
+
+HKDToasts.lua
+HKDToasts_Core.lua
+HKDToasts_ToastSystem.lua
+HKDToasts_Modules.lua
+HKDToasts_Config.lua
+HKDToasts_Events.lua

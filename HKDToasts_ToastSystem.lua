@@ -268,11 +268,8 @@ function HKDT.ApplyToastFont(frame)
   local ok2 = frame._body:SetFont(path, bodySize, "")
 
 if not ok1 or not ok2 then
-  print("HKDToasts: SetFont FAILED for:", tostring(key), "->", tostring(path))
-end
-
-  frame._title:SetFont(path, titleSize, "")
-  frame._body:SetFont(path, bodySize, "")
+    print("HKDToasts: SetFont FAILED for:", tostring(key), "->", tostring(path))
+  end
 end
 
 local function EnsureLayoutDefaults()

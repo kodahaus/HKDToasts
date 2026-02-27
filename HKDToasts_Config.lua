@@ -230,7 +230,7 @@ ApplySoftButtonTheme(lockBtn, false)
 local lockTxt = lockBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 lockTxt:SetPoint("CENTER", 0, 0)
 
-RefreshLockChip = function()
+local function RefreshLockChip()
   local db = DB()
   if not db then
     lockTxt:SetText("Unlocked")
@@ -1904,7 +1904,7 @@ local function IsWidthLockedSkin()
   return (s == "WOW" or s == "JOURNEY" or s == "NOFRAME")
 end
 
-RefreshWidthControlState = function()
+local function RefreshWidthControlState()
   if not sWidth then return end
   if IsWidthLockedSkin() then
     SetSliderEnabled(sWidth, false, "Locked")

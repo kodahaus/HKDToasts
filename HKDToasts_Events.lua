@@ -180,7 +180,6 @@ function HKDT.UpdateEventRegistrations()
 
     -- ✅ NEW: Loot is the most reliable keystone-change hint
     ev:RegisterEvent("CHAT_MSG_LOOT")
-	ev:RegisterEvent("CHAT_MSG_SYSTEM")
   end
 
   if DB and DB.modules and DB.modules.friends then
@@ -221,6 +220,7 @@ ev:SetScript("OnEvent", function(_, event, ...)
     end
 
     if HKDT.Mail_ResetState then HKDT.Mail_ResetState() end
+    if HKDT.StartLoginMailCheck then HKDT.StartLoginMailCheck() end
 
     HKDT.UpdateEventRegistrations()
 
@@ -237,7 +237,7 @@ ev:SetScript("OnEvent", function(_, event, ...)
     if HKDT.Durability_SetBaseline then HKDT.Durability_SetBaseline() end
     if HKDT.Bags_SetBaseline then HKDT.Bags_SetBaseline() end
     if HKDT.Keys_SetBaseline then HKDT.Keys_SetBaseline() end
-	
+
 	-- Start keystone watcher automatically (fixes "only procs after unrelated bag changes")
     if HKDT.DB and HKDT.DB.modules and HKDT.DB.modules.keys then
       if HKDT.Keys_StartWatcher then HKDT.Keys_StartWatcher() end
@@ -256,52 +256,29 @@ ev:SetScript("OnEvent", function(_, event, ...)
 
   local DB = HKDT.DB
   if not DB then return end
-  
-  if event == "CHAT_MSG_SYSTEM" or event == "UI_INFO_MESSAGE" or event == "UI_ERROR_MESSAGE" then
+
+  -- -------------------------------------------------------
+  -- Keystone hint triggers (safe: hint only, no direct toast)
+  -- -------------------------------------------------------
   if DB.modules and DB.modules.keys then
-    local msg
-    if event == "CHAT_MSG_SYSTEM" then
-      msg = ...
-    else
-      local _, m = ...
-      msg = m
-    end
-
-    if HKDT.TryKeystoneHintFromMessage then
-      HKDT.TryKeystoneHintFromMessage(msg, 0.10)
-    end
-  end
-  -- não return aqui necessariamente; mas pode se quiser isolar
-end
-
-  -- -------------------------------------------------------
-  -- ✅ NEW: CHAT_MSG_LOOT keystone parser (RPG Loot Feed style)
-  -- -------------------------------------------------------
-  if event == "CHAT_MSG_LOOT" then
-  if DB.modules and DB.modules.keys then
-    local msg = ...
-    if HKDT.TryKeystoneHintFromMessage then
-      HKDT.TryKeystoneHintFromMessage(msg, 0.20)
+    if event == "CHAT_MSG_LOOT" then
+      local msg = ...
+      if HKDT.TryKeystoneHintFromMessage then
+        HKDT.TryKeystoneHintFromMessage(msg, 0.20)
+      end
+      return
+    elseif event == "CHAT_MSG_SYSTEM" then
+      local msg = ...
+      if HKDT.TryKeystoneHintFromMessage then
+        HKDT.TryKeystoneHintFromMessage(msg, 0.25)
+      end
+    elseif event == "UI_INFO_MESSAGE" or event == "UI_ERROR_MESSAGE" then
+      local _, msg = ...
+      if HKDT.TryKeystoneHintFromMessage then
+        HKDT.TryKeystoneHintFromMessage(msg, 0.25)
+      end
     end
   end
-  return
-end
-
-  -- -------------------------------------------------------
-  -- Key triggers (simple text-based fallback)
-  -- -------------------------------------------------------
--- -------------------------------------------------------
--- Keystone hint triggers (SAFE: only on relevant channels)
--- -------------------------------------------------------
-if DB.modules and DB.modules.keys and HKDT.TryKeystoneHintFromMessage then
-  if event == "CHAT_MSG_SYSTEM" then
-    local msg = ...
-    HKDT.TryKeystoneHintFromMessage(msg, 0.25)
-  elseif event == "UI_INFO_MESSAGE" or event == "UI_ERROR_MESSAGE" then
-    local _, msg = ...
-    HKDT.TryKeystoneHintFromMessage(msg, 0.25)
-  end
-end
 
   -- -------------------------------------------------------
   -- Combat
@@ -365,6 +342,10 @@ end
   end
 
   if event == "PLAYER_ENTERING_WORLD" then
+    if HKDT.StartLoginMailCheck and not (HKDT.Mail_IsLoginChecked and HKDT.Mail_IsLoginChecked()) then
+      HKDT.StartLoginMailCheck()
+    end
+
     if HKDT.ApplyFriendToastSuppression then
       HKDT.ApplyFriendToastSuppression(DB.modules and DB.modules.friends)
     end
@@ -438,7 +419,7 @@ end
   -- -------------------------------------------------------
   -- Bags + Key poll
   -- -------------------------------------------------------
-  
+
     if event == "BAG_UPDATE" then
     if DB.modules and DB.modules.keys then
       if HKDT.CheckKeyAndNotifyDelayed then
@@ -449,7 +430,7 @@ end
     end
     return
   end
-  
+
   if event == "BAG_UPDATE_DELAYED" then
     if HKDT.CheckBagsAndNotify then HKDT.CheckBagsAndNotify() end
 

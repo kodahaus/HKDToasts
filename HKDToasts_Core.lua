@@ -204,12 +204,6 @@ function HKDT.GetSkin()
   return HKDT.SKINS[key] or HKDT.SKINS.MODERN
 end
 
-
--- Color constants (exported)
-HKDT.C_ACCENT = HKDT.C_ACCENT or "|cffEA4581"
-HKDT.C_MUTED  = HKDT.C_MUTED  or "|cff9aa4b2"
-HKDT.C_RESET  = HKDT.C_RESET  or "|r"
-
 -- Reload popup helper
 function HKDT.ShowReloadPopup()
   if not StaticPopupDialogs["HKDTOASTS_RELOAD_REQUIRED"] then
@@ -287,15 +281,16 @@ local function StripRealm(name)
   return name:gsub("%-.*$", "")
 end
 
-function HKDT_Sanitize(kind, title, body, meta)
+function HKDT.Sanitize(kind, title, body, meta)
   -- meta pode ter sender, bnetName, etc (se você já usa)
-  local db = HKDToastsDB
-  if not db or not db.streamerMode then
+  local db = HKDT.DB or HKDToastsDB
+  if not db or not (db.layout and db.layout.streamerMode) then
     return title, body, meta
   end
 
-  db.streamer = db.streamer or {}
-  local opt = db.streamer
+  db.modules = db.modules or {}
+  db.modules.streamer = db.modules.streamer or {}
+  local opt = db.modules.streamer
 
   meta = meta or {}
 
@@ -430,7 +425,7 @@ end
 -- Minimap Icon (LibDataBroker + LibDBIcon)
 -- =========================================================
 HKDT.MINIMAP_LDB_NAME = "HKDToasts"
-HKDT.MINIMAP_ICON_PATH = "Interface\\AddOns\\HKDToasts\\Media\\Icons\\Toast.tga"
+HKDT.MINIMAP_ICON_PATH = "Interface\\AddOns\\HKDToasts\\Media\\Icons\\toast.tga"
 
 local function GetDBSafe()
   return HKDT.DB or HKDToastsDB

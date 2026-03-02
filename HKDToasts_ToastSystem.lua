@@ -26,7 +26,7 @@ local function GetToastSkin()
     if v == "LIGHT" then return "WOW_LIGHT" end
     return "WOW_DARK"
   end
-  
+
   if skin == "JOURNEY" then
     return "JOURNEY"
   end
@@ -61,9 +61,8 @@ function HKDT.ApplyToastBackground(frame)
 
   local def = HKDT.GetSkinDef()
 
-  -- Se a skin não permite tint, NÃO mexe no backdrop color.
-  -- Assim, se o ApplyToastBackdrop setou um fallback sólido (texture missing),
-  -- ele não é apagado.
+  -- If the skin does not support tinting, do not change backdrop color.
+  -- This preserves solid fallback backgrounds set by ApplyToastBackdrop (e.g. missing texture).
   if def and def.allowTintBG == false then
     return
   end
@@ -153,7 +152,7 @@ function HKDT.ApplyToastBackdrop(frame)
       frame._journeyBG:SetAlpha(1)
       frame._journeyBG:Show()
 
-      -- debug/fallback: se não carregou a textura, evita ficar invisível
+      -- Debug fallback: if texture load fails, prevent invisible toast frames
       if not frame._journeyBG:GetTexture() then
         print("HKDToasts: JOURNEY texture NOT FOUND ->", tex)
         frame:SetBackdropColor(0,0,0,0.85)
@@ -212,9 +211,9 @@ function HKDT.ApplyToastBackdrop(frame)
         frame:SetBackdropBorderColor(1,1,1,0.10)
         frame._wowBG:Hide()
 		
-	else
-        frame._skinFallbackSolid = nil  
-        frame._wowBG:Show()	
+  else
+        frame._skinFallbackSolid = nil
+        frame._wowBG:Show()
       end
     end
 
@@ -526,10 +525,10 @@ HKDT.SKIN_DEFS = HKDT.SKIN_DEFS or {
 },
 
   text = {
-  -- TÍTULO: dourado claro estilo WoW
+  -- TITLE: warm gold
   title = {1.00, 0.92, 0.65, 1},
 
-  -- BODY: quase branco quente
+  -- BODY: warm near-white
   body  = {0.97, 0.95, 0.88, 1},
 
   shadowA = 0.55,
@@ -578,15 +577,15 @@ EVERGREEN = {
 LINE = {
   type = "WOW",
   variant = "DARK",
-  lockWidth = false,         -- deixa livre por enquanto
+  lockWidth = false, -- Keep unlocked for now
   allowTintBG = false,
   wow = {
     bgTex = "transparentline.tga",
-    bgTexCompact = "transparentline.tga", -- mesma pros dois, como você comentou
+    bgTexCompact = "transparentline.tga", -- Same texture in both layouts
   },
   text = { title = {1,1,1,1}, body = {1,1,1,0.95}, shadowA = 0.85 },
   border = {0,0,0,0},
-  badgeAnchor = "LEFT",      -- 👈 flag pra mover a bolinha só nessa skin
+  badgeAnchor = "LEFT", -- Move badge anchor only for this skin
 },
 
 }
@@ -657,25 +656,25 @@ function HKDT.ApplyBadgeColors(frame)
 
   local skinKey = GetToastSkin()
 
-  -- ✅ WOW skins: usa textura fixa stackcounter.tga (sem borda colorida)
+  -- WOW skins: use fixed stackcounter.tga texture (no colored border)
   if skinKey == "WOW_DARK" or skinKey == "WOW_LIGHT" or skinKey == "EVERGREEN" or skinKey == "JOURNEY" then
-  if badge._skinTex then badge._skinTex:Show() end
+    if badge._skinTex then badge._skinTex:Show() end
 
-  bg:SetAlpha(0)
-  border:SetAlpha(0)
-  if badge._borderInner then badge._borderInner:SetAlpha(0) end
+    bg:SetAlpha(0)
+    border:SetAlpha(0)
+    if badge._borderInner then badge._borderInner:SetAlpha(0) end
 
-  -- ✅ sempre branco
-  if frame._badgeText then
-    frame._badgeText:SetTextColor(1, 1, 1, 0.95)
-    frame._badgeText:SetShadowColor(0, 0, 0, 0.65)
-    frame._badgeText:SetShadowOffset(1, -1)
+    -- Always white
+    if frame._badgeText then
+      frame._badgeText:SetTextColor(1, 1, 1, 0.95)
+      frame._badgeText:SetShadowColor(0, 0, 0, 0.65)
+      frame._badgeText:SetShadowOffset(1, -1)
+    end
+
+    return
   end
 
-  return
-end
-
-  -- ✅ outras skins (Modern / NOFRAME / LINE / JOURNEY etc): mantém o sistema atual
+  -- Other skins (Modern / NOFRAME / LINE / JOURNEY): keep current behavior
   if badge._skinTex then badge._skinTex:Hide() end
 
   bg:SetAlpha(1)
@@ -802,9 +801,12 @@ function HKDT.FindUnitForAuthor(author)
   local fullLower, shortLower = HKDT.NormalizeAuthorName(author)
 
   local function MatchUnit(unit)
+    if unit == "target" then
+      return false
+    end
     if not UnitExists(unit) then return false end
     local n, realm = UnitName(unit)
-    if not n or n == "" then return false end
+    if type(n) ~= "string" or n == "" then return false end
 
     local full = n
     if realm and realm ~= "" then full = n .. "-" .. realm end
@@ -818,7 +820,8 @@ function HKDT.FindUnitForAuthor(author)
   end
 
   if MatchUnit("player") then return "player" end
-  if MatchUnit("target") then return "target" end
+  -- NOTE: target is unstable (secret string / taint risk), never use for whisper portraits
+  -- if MatchUnit("target") then return "target" end
   if MatchUnit("focus") then return "focus" end
 
   if IsInRaid and IsInRaid() then
@@ -997,7 +1000,7 @@ frame._journeyBG:Hide()
   ringInner:SetPoint("TOPLEFT", badge, "TOPLEFT", 1, -1)
   ringInner:SetPoint("BOTTOMRIGHT", badge, "BOTTOMRIGHT", -1, 1)
   ringInner:SetColorTexture(7/255, 8/255, 10/255, 1.00)
-  
+
   local function ApplyRoundMask(tex)
     if not tex then return end
     if tex.SetMaskTexture then
@@ -1014,7 +1017,7 @@ frame._journeyBG:Hide()
   end
 
   local addon = HKDT.ADDON_NAME or "HKDToasts"
-  local ICONS_BASE = "Interface\\AddOns\\" .. addon .. "\\Media\\Icons\\"  
+  local ICONS_BASE = "Interface\\AddOns\\" .. addon .. "\\Media\\Icons\\"
   
   -- WOW badge skin (used only on WOW_DARK/WOW_LIGHT/EVERGREEN)
   local badgeSkin = badge:CreateTexture(nil, "ARTWORK")
@@ -1024,7 +1027,7 @@ frame._journeyBG:Hide()
   badgeSkin:SetAlpha(1)
   badgeSkin:Hide()
 
-  -- aplica máscara redonda também na textura da skin
+  -- Apply round mask to the skin texture too
   frame._badgeMaskSkin = ApplyRoundMask(badgeSkin)
 
   badge._skinTex = badgeSkin
@@ -1068,7 +1071,7 @@ frame._journeyBG:Hide()
     local DB = HKDT.DB
     EnsureLayoutDefaults()
 	
-	local skin = HKDT.GetToastSkin and HKDT.GetToastSkin() or GetToastSkin()
+  local skin = HKDT.GetToastSkin and HKDT.GetToastSkin() or GetToastSkin()
 
     local compact = DB and DB.layout and DB.layout.compact
     local side = DB and DB.layout and DB.layout.iconSide or "LEFT"
@@ -1076,20 +1079,20 @@ frame._journeyBG:Hide()
    local bgSize   = compact and 28 or 34
 local iconSize = compact and 16 or 18
 
--- pack direto do DB (não chama GetIconPack aqui)
+-- Icon pack read directly from DB (without calling GetIconPack here)
 local pack = (DB and DB.layout and DB.layout.iconPack) or "WOW"
 
--- forced packs por skin (igual seu GetIconPack)
+-- Skin-specific forced packs (same behavior as GetIconPack)
 local skinKey = GetToastSkin()
 if skinKey == "EVERGREEN" then pack = "WOW" end
 if skinKey == "LINE" then pack = "FLAT" end
 
--- atlas um pouco maior (FLAT fica intacto)
+-- atlas icons bigger (FLAT doesn't change)
 if pack == "WOW" then
   iconSize = compact and 18 or 21
 end
 
--- skins WOW/JOURNEY/EVERGREEN podem ser maiores ainda
+-- WOW/JOURNEY/EVERGREEN skins may need larger icon sizes
 local skinNow = GetToastSkin()
 if IsWowSkin(skinNow) or skinNow == "JOURNEY" then
   iconSize = compact and 22 or 24
@@ -1205,7 +1208,7 @@ function HKDT.ReleaseFrame(frame)
   if frame._badgeFrame then frame._badgeFrame:Hide() end
   if frame._badgeFrame and frame._badgeFrame._skinTex then
     frame._badgeFrame._skinTex:Hide()
-  end  
+  end
   frame._stackKey = nil
 end
 
@@ -1381,7 +1384,7 @@ end
 function HKDT.SetIcon(frame, atlas, fallbackTexture, useAtlasSize)
   if not frame or not frame._icon then return end
 
-  -- NÃO seta size aqui. Layout cuida disso.
+  -- Do not set size here; layout management owns sizing.
   frame._icon:ClearAllPoints()
   frame._icon:SetPoint("CENTER", frame._iconBG)
 
@@ -1577,17 +1580,17 @@ HKDT.FLAT_ICONS = {
 
 HKDT.WOWSKIN_ICONS = {
   MAIL       = "mail.tga",
-  BNET       = "bnetmessage.tga",   
+  BNET       = "bnetmessage.tga",
   VAULT      = "vault.tga",
   REMINDER   = "reminder.tga",
   SYSTEM     = "dailyreset.tga",
   DURA70     = "repair.tga",
   DURA30     = "repair.tga",
   DURA10     = "repair.tga",
-  BAG90      = "inventoryfull.tga", 
+  BAG90      = "inventoryfull.tga",
   BAGFULL    = "inventoryfull.tga",
-  FRIEND_ON  = "bnetON.tga",        
-  FRIEND_OFF = "bnetOFFdark.tga",   
+  FRIEND_ON  = "bnetON.tga",
+  FRIEND_OFF = "bnetOFFdark.tga",
   WHISPER    = "whisper.tga",
   KEY        = "mkey.tga",
 }
@@ -1612,7 +1615,7 @@ function HKDT.SetKindIcon(frame, kind, atlas, fallbackTexture, useAtlasSize)
 
   local pack = GetIconPack()
 
-  -- 1) FLAT: sempre usa TGAs do pack FLAT (independente da skin)
+  -- 1) FLAT: always uses TGAs from FLAT pack (independent of skin)
   if pack == "FLAT" then
     local file = HKDT.FLAT_ICONS[kind] or "default.tga"
     frame._icon:SetTexture(GetFlatBasePath() .. file)
@@ -1626,7 +1629,7 @@ function HKDT.SetKindIcon(frame, kind, atlas, fallbackTexture, useAtlasSize)
     return
   end
 
-  -- 2) WOW: sempre tenta Atlas (independente de WOW/JOURNEY/NOFRAME/MODERN)
+  -- 2) WOW: always tries Atlas (independent of WOW/JOURNEY/NOFRAME/MODERN)
   HKDT.SetIcon(frame, atlas, fallbackTexture, useAtlasSize)
   frame._icon:SetVertexColor(1,1,1,1)
 end
@@ -1873,17 +1876,30 @@ function HKDT.FlushPostCombatQueue()
     return
   end
 
+  -- No ticker API: flush everything now (but still protected)
   if not C_Timer or not C_Timer.NewTicker then
+    HKDT.CancelFlushTicker()
     while #HKDT.POST_COMBAT_QUEUE > 0 do
       local p = table.remove(HKDT.POST_COMBAT_QUEUE, 1)
-      HKDT.EnqueueRaw(p.kind, p.author, p.msg, p.meta)
+
+      local ok, err = pcall(function()
+        HKDT.EnqueueRaw(p.kind, p.author, p.msg, p.meta)
+      end)
+
+      if not ok then
+        -- keep the queue flowing even if one payload explodes
+        HKDT.EnqueueRaw("SYSTEM", "HKDToasts", "Post-combat flush error (check console)", nil)
+        -- print("HKDToasts: FlushPostCombatQueue error:", err)
+      end
     end
     return
   end
 
+  -- Ticker-based flush: 2 payloads per tick
   HKDT.CancelFlushTicker()
   HKDT.FLUSH_TICKER = C_Timer.NewTicker(0.12, function()
     if HKDT.IsInCombat() then return end
+
     if #HKDT.POST_COMBAT_QUEUE == 0 then
       HKDT.CancelFlushTicker()
       return
@@ -1891,8 +1907,17 @@ function HKDT.FlushPostCombatQueue()
 
     for _ = 1, 2 do
       if #HKDT.POST_COMBAT_QUEUE == 0 then break end
+
       local p = table.remove(HKDT.POST_COMBAT_QUEUE, 1)
-      HKDT.EnqueueRaw(p.kind, p.author, p.msg, p.meta)
+
+      local ok, err = pcall(function()
+        HKDT.EnqueueRaw(p.kind, p.author, p.msg, p.meta)
+      end)
+
+      if not ok then
+        HKDT.EnqueueRaw("SYSTEM", "HKDToasts", "Post-combat flush error (check console)", nil)
+        -- print("HKDToasts: FlushPostCombatQueue error:", err)
+      end
     end
   end)
 end

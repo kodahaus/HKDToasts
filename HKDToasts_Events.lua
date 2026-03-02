@@ -4,26 +4,28 @@ local HKDT = _G.HKDT or {}
 _G.HKDT = HKDT
 
 -- =========================================================
--- Minimal keystone text detector (NO language/accents logic)
+-- Safe string
 -- =========================================================
-local function HKDT_IsKeystoneText(msg)
-  if type(msg) ~= "string" then return false end
 
-  -- universal internal link token
-  if msg:find("Hkeystone:") then
-    return true
-  end
-
-  -- keep it simple (no PT/ES/FR/etc token lists)
-  local low = msg:lower()
-  if low:find("keystone") then return true end
-
-  return false
+local function HKDT_SafeString(v)
+  local ok, s = pcall(tostring, v)
+  if not ok then return "" end
+  if s == "nil" then return "" end
+  return s
 end
 
 -- =========================================================
--- Detect keystone from loot line
+-- Minimal keystone text detector (NO language/accents logic)
 -- =========================================================
+local function HKDT_IsKeystoneText(msg)
+  msg = HKDT_SafeString(msg)
+  if msg == "" then return false end
+  local ok, res = pcall(function()
+    if msg:find("Hkeystone:") then return true end
+    return msg:lower():find("keystone") and true or false
+  end)
+  return ok and res or false
+end
 
 -- =========================================================
 -- RPG Loot Feed approach: detect keystone from loot line
@@ -31,20 +33,21 @@ end
 
 -- Extract item/keystone links from chat message
 local function HKDT_ExtractItemLinksFromChat(msg)
-  if type(msg) ~= "string" then return nil end
+  msg = HKDT_SafeString(msg)
+  if msg == "" then return nil end
 
   local links = {}
 
-  -- match ANY item link regardless of color prefix
-  for link in msg:gmatch("|Hitem:[^|]+|h%[[^%]]+%]|h") do
-    links[#links + 1] = link
-  end
+  local ok = pcall(function()
+    for link in msg:gmatch("|Hitem:[^|]+|h%[[^%]]+%]|h") do
+      links[#links + 1] = link
+    end
+    for link in msg:gmatch("|Hkeystone:[^|]+|h%[[^%]]+%]|h") do
+      links[#links + 1] = link
+    end
+  end)
 
-  for link in msg:gmatch("|Hkeystone:[^|]+|h%[[^%]]+%]|h") do
-    links[#links + 1] = link
-  end
-
-  if #links == 0 then return nil end
+  if not ok or #links == 0 then return nil end
   return links
 end
 
@@ -108,7 +111,8 @@ end
 -- Public helper: try to extract a keystone hint from ANY chat message
 -- SAFE behavior: hint is ONLY a trigger to re-check OWNED KEY, never a toast source.
 HKDT.TryKeystoneHintFromMessage = function(msg, delay)
-  if type(msg) ~= "string" then return false end
+  msg = HKDT_SafeString(msg)
+  if msg == "" then return false end
   if not HKDT.DB or not (HKDT.DB.modules and HKDT.DB.modules.keys) then return false end
 
   local links = HKDT_ExtractItemLinksFromChat(msg)
@@ -124,7 +128,7 @@ HKDT.TryKeystoneHintFromMessage = function(msg, delay)
         mapId = mapId,
         level = level,
         raw = links[i],
-        msg = msg,
+        msg = HKDT_SafeString(msg),
       }
 
       -- ✅ IMPORTANT: do NOT apply hint directly; just re-check your real owned key.
@@ -238,7 +242,7 @@ ev:SetScript("OnEvent", function(_, event, ...)
     if HKDT.Bags_SetBaseline then HKDT.Bags_SetBaseline() end
     if HKDT.Keys_SetBaseline then HKDT.Keys_SetBaseline() end
 
-	-- Start keystone watcher automatically (fixes "only procs after unrelated bag changes")
+  -- Start keystone watcher automatically (fixes "only procs after unrelated bag changes")
     if HKDT.DB and HKDT.DB.modules and HKDT.DB.modules.keys then
       if HKDT.Keys_StartWatcher then HKDT.Keys_StartWatcher() end
     else
@@ -260,21 +264,24 @@ ev:SetScript("OnEvent", function(_, event, ...)
   -- -------------------------------------------------------
   -- Keystone hint triggers (safe: hint only, no direct toast)
   -- -------------------------------------------------------
-  if DB.modules and DB.modules.keys then
+    if DB.modules and DB.modules.keys then
     if event == "CHAT_MSG_LOOT" then
-      local msg = ...
-      if HKDT.TryKeystoneHintFromMessage then
+      local msg = HKDT_SafeString((...))
+      if msg ~= "" and HKDT.TryKeystoneHintFromMessage then
         HKDT.TryKeystoneHintFromMessage(msg, 0.20)
       end
       return
+
     elseif event == "CHAT_MSG_SYSTEM" then
-      local msg = ...
-      if HKDT.TryKeystoneHintFromMessage then
+      local msg = HKDT_SafeString((...))
+      if msg ~= "" and HKDT.TryKeystoneHintFromMessage then
         HKDT.TryKeystoneHintFromMessage(msg, 0.25)
       end
+
     elseif event == "UI_INFO_MESSAGE" or event == "UI_ERROR_MESSAGE" then
       local _, msg = ...
-      if HKDT.TryKeystoneHintFromMessage then
+      msg = HKDT_SafeString(msg)
+      if msg ~= "" and HKDT.TryKeystoneHintFromMessage then
         HKDT.TryKeystoneHintFromMessage(msg, 0.25)
       end
     end
@@ -302,8 +309,12 @@ ev:SetScript("OnEvent", function(_, event, ...)
   -- -------------------------------------------------------
   -- Whispers
   -- -------------------------------------------------------
-  if event == "CHAT_MSG_WHISPER" then
+    if event == "CHAT_MSG_WHISPER" then
     local msg, author = ...
+    msg = HKDT_SafeString(msg)
+    author = HKDT_SafeString(author)
+    if msg == "" then return end
+
     if HKDT.HandleWhisper then
       HKDT.HandleWhisper(author, msg)
     elseif HKDT.Enqueue then
@@ -314,6 +325,10 @@ ev:SetScript("OnEvent", function(_, event, ...)
 
   if event == "CHAT_MSG_BN_WHISPER" then
     local msg, author = ...
+    msg = HKDT_SafeString(msg)
+    author = HKDT_SafeString(author)
+    if msg == "" then return end
+
     local bnetIDAccount = nil
     for i = 1, select("#", ...) do
       local v = select(i, ...)

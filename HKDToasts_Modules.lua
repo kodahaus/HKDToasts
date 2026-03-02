@@ -199,7 +199,7 @@ local function Vault_StartRetry()
 
   Vault_StopRetry()
 
-  -- tenta por ~60s (30 * 2s) sem abrir o Vault UI
+-- Retry for ~60s (30 * 2s) without opening the Vault UI
   vaultRetryTries = 0
   vaultRetryTicker = C_Timer.NewTicker(2.0, function()
     vaultRetryTries = vaultRetryTries + 1
@@ -440,7 +440,7 @@ local function Bags_GetTotals()
     end
 
   elseif GetContainerNumSlots and GetContainerNumFreeSlots then
-    -- fallback legacy: não conta reagent bag mesmo (0-4)
+    -- Legacy fallback: excludes reagent bag (bags 0-4 only)
     for bag = 0, 4 do
       local n = GetContainerNumSlots(bag) or 0
       local f = GetContainerNumFreeSlots(bag) or 0

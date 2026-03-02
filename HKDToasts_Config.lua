@@ -24,7 +24,7 @@ local Reflow              = HKDT.Reflow
 local StartToast          = HKDT.StartToast
 local RefreshActiveStyle  = HKDT.RefreshActiveStyle
 
---- =========================================================
+-- =========================================================
 -- Fonts (single source of truth: HKDT core)
 -- =========================================================
 local function GetFontListSafe()
@@ -55,8 +55,9 @@ local RefreshLockChip
 -- Color picker helpers (global wrappers)
 -- ---------------------------------------------------------
 
--- normal picker (sem alpha) -> usado pra whisper/mail/etc
-function OpenColorPicker(initial, onChanged)
+-- Standard color picker (no alpha), used for whisper/mail/etc.
+
+local function OpenColorPicker(initial, onChanged)
   if not initial then return end
 
   local prev = { r = initial.r or 0, g = initial.g or 0, b = initial.b or 0 }
@@ -230,7 +231,7 @@ ApplySoftButtonTheme(lockBtn, false)
 local lockTxt = lockBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 lockTxt:SetPoint("CENTER", 0, 0)
 
-RefreshLockChip = function()
+local function RefreshLockChip()
   local db = DB()
   if not db then
     lockTxt:SetText("Unlocked")
@@ -362,7 +363,7 @@ content:SetPoint("TOPLEFT", sidebar, "TOPRIGHT", 10, 0)
 content:SetPoint("BOTTOMRIGHT", 0, 0)
 ApplyPanelTheme(content)
 
--- ✅ Content scroll (so small window can scroll)
+-- Content scroll (allows scrolling in smaller window sizes)
 local contentScroll = CreateFrame("ScrollFrame", "HKDToastsConfigContentScroll", content, "UIPanelScrollFrameTemplate")
 contentScroll:SetPoint("TOPLEFT", 0, 0)
 contentScroll:SetPoint("BOTTOMRIGHT", 0, 0)
@@ -378,8 +379,8 @@ end
 local contentChild = CreateFrame("Frame", nil, contentScroll)
 contentChild:SetSize(1, 1)
 
--- ✅ CRÍTICO: scroll child precisa ter largura “real” via anchors,
--- senão as páginas podem ficar com width 0 e “sumir”
+-- Critical: the scroll child must get its real width from anchors,
+-- otherwise pages can collapse to width 0 and disappear.
 contentChild:ClearAllPoints()
 contentChild:SetPoint("TOPLEFT", 0, 0)
 contentChild:SetPoint("TOPRIGHT", 0, 0)
@@ -398,8 +399,8 @@ local function UpdateContentChildWidth()
   end
   if not w or w <= 1 then w = 520 end
 
-  -- o contentChild tá preso em TOPLEFT/TOPRIGHT, então ele já pega a largura.
-  -- mas manter SetWidth ajuda quando o client tá meio maluco.
+  -- contentChild is anchored TOPLEFT/TOPRIGHT, so it already stretches to width.
+  -- keeping SetWidth here helps on some unstable client states.
   contentChild:SetWidth(w)
 
   if type(Pages) == "table" then
@@ -473,7 +474,7 @@ RelayoutCallbacks = {}
 local function GetContentInnerWidth()
   local w = contentScroll:GetWidth() or 0
   if w <= 0 then return 520 end
-  return (w - 48) -- padding + scrollbar folga
+  return (w - 48) -- padding + scrollbar room
 end
 
 local function CreatePage(key, title)
@@ -482,7 +483,7 @@ local function CreatePage(key, title)
   p:SetPoint("TOPLEFT", 12, -12)
   p:SetPoint("TOPRIGHT", -12, -12)
 
-  -- ✅ garante que a page tem área (evita “frame 0-height” bugado no scroll)
+  -- Ensure the page has area (prevents broken 0-height scroll frames).
   p:SetHeight(1)
 
   local t = p:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -552,8 +553,8 @@ end
 -- =========================================================
 local function CreateFlatCheckbox(parent, labelText)
   local wrap = CreateFrame("Button", nil, parent)
-	wrap:SetSize(260, 18)      -- ✅ largura default segura (evita sumir se não ancorar TOPRIGHT)
-	wrap:EnableMouse(true)
+  wrap:SetSize(260, 18) -- Safe default width (prevents disappearing when TOPRIGHT is missing)
+  wrap:EnableMouse(true)
 
   local box = CreateFrame("Frame", nil, wrap, "BackdropTemplate")
   box:SetSize(14, 14)
@@ -729,7 +730,7 @@ local function NewUI(page)
   local cb = CreateFlatCheckbox(P, labelText)
   cb:ClearAllPoints()
   cb:SetPoint("TOPLEFT", 0, self.y)
-  cb:SetPoint("TOPRIGHT", 0, self.y) -- ✅ estica largura toda
+  cb:SetPoint("TOPRIGHT", 0, self.y) -- Stretch to full row width
   cb:SetHeight(18)
   table.insert(self.elements, cb)
   self.y = self.y - 24
@@ -773,10 +774,10 @@ end
     self.y = self.y - 18
 
     local row = CreateFrame("Frame", nil, P)
-	row:SetPoint("TOPLEFT", 0, self.y)
-	row:SetPoint("TOPRIGHT", 0, self.y)      -- ✅ garante largura
-	row:SetHeight(24)
-	row:SetWidth(GetContentInnerWidth())
+  row:SetPoint("TOPLEFT", 0, self.y)
+  row:SetPoint("TOPRIGHT", 0, self.y) -- Ensure row width
+  row:SetHeight(24)
+  row:SetWidth(GetContentInnerWidth())
 
     local bL = CreateFrame("Button", nil, row, "BackdropTemplate")
     bL:SetSize(108, 22)
@@ -815,8 +816,7 @@ end
     table.insert(self.elements, row)
     self.y = self.y - 32
     return row
-  end
-  
+  end  
 
   local function SkinDropdown(dd)
     if not dd then return end
@@ -881,7 +881,7 @@ end
 
     local function SetText(txt) UIDropDownMenu_SetText(dd, txt) end
 	
-	if not dd then return nil end
+  if not dd then return nil end
 
     UIDropDownMenu_Initialize(dd, function(self, level)
       for _, v in ipairs(values) do
@@ -1021,7 +1021,7 @@ local function OpenBGColorPicker(bg, onChange)
       end
     end
 
-    -- Legacy: slider é "opacity" (0 opaco -> 1 transparente)
+    -- Legacy: slider uses "opacity" (0 opaque -> 1 transparent)
     local opacity
     if ColorPickerFrame.opacitySlider and ColorPickerFrame.opacitySlider.GetValue then
       opacity = ColorPickerFrame.opacitySlider:GetValue()
@@ -1062,8 +1062,8 @@ local function OpenBGColorPicker(bg, onChange)
 
     local info = {
       r = bg.r or 0, g = bg.g or 0, b = bg.b or 0,
-      -- ✅ Se o client expõe GetColorAlpha, trata “opacity” como alpha pra não inverter.
-      -- ✅ Se não expõe, assume legacy: “opacity” = 1 - alpha.
+      -- If the client exposes GetColorAlpha, treat "opacity" as alpha to avoid inversion.
+      -- Otherwise, assume legacy behavior: "opacity" = 1 - alpha.
       opacity = usesAlphaAPI and (bg.a or 1) or (1 - (bg.a or 1)),
       hasOpacity = true,
       swatchFunc = Apply,
@@ -1132,10 +1132,8 @@ local segIconSide = UIG:AddSegmented("Icon side", "Left", "Right", function(isLe
   Reflow()
 end)
 
-
 local WOW_LOCKED_WIDTH     = 260 -- TWW Dark/Light + Journey
 local NOFRAME_LOCKED_WIDTH = 320 -- Transparent (NOFRAME)
-
 
 -- =========================================================
 -- Skins preset (single dropdown)
@@ -1170,11 +1168,11 @@ local function InferSkinPreset(db)
   if toastSkin == "JOURNEY" then
     return "JOURNEY"
   end
-  
+
     if toastSkin == "NOFRAME" then
     return "NOFRAME"
   end
-  
+
   if toastSkin == "EVERGREEN" then
     return "EVERGREEN"
   end
@@ -1235,20 +1233,20 @@ local function ApplySkinPreset(preset)
     db.layout.toastSkin  = "NOFRAME"
     db.layout.wowVariant = "DARK"
     LockWidthTo(NOFRAME_LOCKED_WIDTH)
-	
+
   elseif preset == "EVERGREEN" then
-    db.layout.iconPack   = "WOW"          -- ou "FLAT" se preferir
+    db.layout.iconPack   = "WOW" -- or "FLAT" if preferred
     db.layout.toastSkin  = "EVERGREEN"    -- precisa existir no ToastSystem
     db.layout.wowVariant = "DARK"
-    -- decide se trava width ou não (recomendação: NÃO travar)
+    -- Decide whether width should be locked (recommended: keep it unlocked).
     -- UnlockWidth()
 
   elseif preset == "LINE" then
-    db.layout.iconPack   = "FLAT"          
+    db.layout.iconPack   = "FLAT"
     db.layout.toastSkin  = "LINE"         -- precisa existir no ToastSystem
     db.layout.wowVariant = "DARK"
-    -- se Line for “só linhas top/bottom” eu recomendo travar width:
-    -- LockWidthTo(320)	
+    -- If "Line" uses only top/bottom lines, consider locking width:
+    -- LockWidthTo(320)
 
   else
     -- safety fallback
@@ -1480,7 +1478,7 @@ local ebRep = RemFlatEdit("HKDToastsRemRep", 64, 22, 6)
 ebRep:ClearAllPoints()
 ebRep:SetPoint("TOPLEFT", 12, -148)
 
--- ✅ faz o toggle funcionar e evita confusão visual
+-- Keep repeat toggle behavior and avoid visual confusion
 cbInf:_set(true) -- default: repeat until turn off (∞)
 
 local function SyncRepeatUI()
@@ -1819,7 +1817,7 @@ local function CanonFontName(name)
 end
 
 local function RefreshFontDropdown()
-  if not ddFont then return end -- ✅ evita UIDropDownMenu_Initialize(nil,...)
+  if not ddFont then return end -- Guard against UIDropDownMenu_Initialize(nil, ...)
   local db = DB(); if not db then return end
   db.layout = db.layout or CopyDefaults(DEFAULTS.layout, {})
 
@@ -1849,7 +1847,7 @@ local function RefreshFontDropdown()
         db2.layout = db2.layout or CopyDefaults(DEFAULTS.layout, {})
 
         db2.layout.font = v.value
-        db2.layout.fontPath = nil -- ✅ NÃO salvar path
+        db2.layout.fontPath = nil -- Do not persist explicit font paths
 
         for _, fr in ipairs(Active) do
           ApplyToastFont(fr)
@@ -1904,7 +1902,7 @@ local function IsWidthLockedSkin()
   return (s == "WOW" or s == "JOURNEY" or s == "NOFRAME")
 end
 
-RefreshWidthControlState = function()
+local function RefreshWidthControlState()
   if not sWidth then return end
   if IsWidthLockedSkin() then
     SetSliderEnabled(sWidth, false, "Locked")
@@ -1916,7 +1914,7 @@ end
 local function RefreshConfig()
   local db = DB(); if not db then return end
   ApplyConfigTheme(cfg)
-  
+
   -- Skins preset (sync UI + apply legacy fields safely)
 local preset = InferSkinPreset(db)
 ApplySkinPreset(preset)
@@ -1935,7 +1933,6 @@ if ddSkin then
   if ddSkin._SetText then ddSkin._SetText(txt) end
 end
 
-  
   if RefreshWowVariantControlState then RefreshWowVariantControlState() end
   db.animations = CopyDefaults(DEFAULTS.animations, db.animations or {})
   db.sounds = db.sounds or CopyDefaults(DEFAULTS.sounds, {})
@@ -1951,7 +1948,6 @@ end
   segIconSide:_set((db.layout.iconSide or "LEFT") ~= "RIGHT")
 
   if ddFont then RefreshFontDropdown() end
-
 
   do
     local map = {

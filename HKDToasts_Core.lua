@@ -1,3 +1,7 @@
+-- =========================================================
+-- [02] Core Defaults, DB, and Shared Utilities
+-- =========================================================
+
 local ADDON_NAME = ...
 
 -- Shared addon namespace (single table across all files)
@@ -9,7 +13,9 @@ end
 
 HKDToastsDB = HKDToastsDB or {}
 
--- >>> HKDT: SECTION [01] DEFAULTS & DB BOOTSTRAP
+-- =========================================================
+-- [02.1] Defaults and SavedVariables Bootstrap
+-- =========================================================
 HKDT.DEFAULTS = {
   point = "CENTER",
   relPoint = "CENTER",
@@ -29,20 +35,19 @@ HKDT.DEFAULTS = {
   },
 
   locked = false,
-  
   minimap = {
-  hide = false,
-},
+    hide = false,
+  },
 
-layout = {
-  compact = false,
-  compactMinWidth = 260,
-  iconSide = "LEFT",
-  iconPack = "FLAT",
-  toastSkin = "MODERN",
-  wowVariant = "DARK",     -- ✅ ADD
-  font = "GameFontNormal",
-},
+  layout = {
+    compact = false,
+    compactMinWidth = 260,
+    iconSide = "LEFT",
+    iconPack = "FLAT",
+    toastSkin = "MODERN",
+    wowVariant = "DARK",
+    font = "GameFontNormal",
+  },
 
   modules = {
     vault      = true,
@@ -50,15 +55,15 @@ layout = {
     reminders  = true,
     durability = true,
     friends    = true,
-	bags = true,
-	keys = true,
-	streamerMode = false,
-streamer = {
-  hideNames = false,       -- troca nomes por "Someone"
-  hideContent = false,    -- se true: troca a mensagem por "New message"
-  hideRealms = true,      -- remove "-Realm"
-  keepLinks = true,       -- se false: remove links |H...|h
-},
+    bags = true,
+    keys = true,
+    streamerMode = false,
+    streamer = {
+      hideNames = false, -- replace names with "Someone"
+      hideContent = false, -- if true: replaces content with "New message"
+      hideRealms = true, -- remove "-Realm"
+      keepLinks = true, -- if false: strips links |H...|h
+    },
   },
 
   reminders = {},
@@ -80,13 +85,13 @@ streamer = {
     dura30   = { r = 1.00, g = 0.20, b = 0.20 },
     dura10   = { r = 1.00, g = 0.05, b = 0.05 },
 	
-	bag90   = { r = 1.00, g = 0.50, b = 0.10 },
+    bag90   = { r = 1.00, g = 0.50, b = 0.10 },
     bagfull = { r = 1.00, g = 0.20, b = 0.20 },
 
     friendOn  = { r = 0.00, g = 1.00, b = 0.96 },
     friendOff = { r = 0.55, g = 0.62, b = 0.75 },
 	
-	key = { r = 0.26, g = 0.95, b = 0.56 },
+    key = { r = 0.26, g = 0.95, b = 0.56 },
   },
 
   bg = { r = 0.00, g = 0.00, b = 0.00, a = 0.92 },
@@ -105,13 +110,13 @@ streamer = {
     dura30   = true,
     dura10   = true,
 	
-	bag90   = true,
-	bagfull = true,	
+    bag90   = true,
+    bagfull = true,
 
     friendOn  = true,
     friendOff = true,
 	
-	key = true,
+    key = true,
 
     ids = {
       whisper   = 3081,
@@ -125,13 +130,13 @@ streamer = {
       dura30    = 175002,
       dura10    = 175002,
 	  
-	  bag90   = 859,
-	  bagfull = 859,
+      bag90   = 859,
+      bagfull = 859,
 
       friendOn  = 111363,
       friendOff = 111362,
 	  
-	  key = 187884,
+      key = 187884,
     },
 
     channel = "SFX",
@@ -203,12 +208,6 @@ function HKDT.GetSkin()
 
   return HKDT.SKINS[key] or HKDT.SKINS.MODERN
 end
-
-
--- Color constants (exported)
-HKDT.C_ACCENT = HKDT.C_ACCENT or "|cffEA4581"
-HKDT.C_MUTED  = HKDT.C_MUTED  or "|cff9aa4b2"
-HKDT.C_RESET  = HKDT.C_RESET  or "|r"
 
 -- Reload popup helper
 function HKDT.ShowReloadPopup()
@@ -287,15 +286,16 @@ local function StripRealm(name)
   return name:gsub("%-.*$", "")
 end
 
-function HKDT_Sanitize(kind, title, body, meta)
-  -- meta pode ter sender, bnetName, etc (se você já usa)
-  local db = HKDToastsDB
-  if not db or not db.streamerMode then
+function HKDT.Sanitize(kind, title, body, meta)
+  -- meta may carry sender, bnetName, etc. (if already provided by caller)
+  local db = HKDT.DB or HKDToastsDB
+  if not db or not (db.layout and db.layout.streamerMode) then
     return title, body, meta
   end
 
-  db.streamer = db.streamer or {}
-  local opt = db.streamer
+  db.modules = db.modules or {}
+  db.modules.streamer = db.modules.streamer or {}
+  local opt = db.modules.streamer
 
   meta = meta or {}
 
@@ -305,12 +305,12 @@ function HKDT_Sanitize(kind, title, body, meta)
     body  = StripLinks(body)
   end
 
-  -- Conteúdo
+  -- Content
   if opt.hideContent then
     body = "New message"
   end
 
-  -- Nomes / Realms (principalmente whisper/bnet)
+  -- Names / realms (mainly whisper/bnet)
   if kind == "whisper" or kind == "bnet" then
     if opt.hideRealms then
       if meta.sender then meta.sender = StripRealm(meta.sender) end
@@ -318,7 +318,7 @@ function HKDT_Sanitize(kind, title, body, meta)
     end
 
     if opt.hideNames then
-      -- limpa title/body de ocorrências “óbvias” (sem precisar saber o formato exato)
+      -- Clean obvious sender occurrences from title/body without assuming exact format
       if meta.sender and meta.sender ~= "" then
         title = title and title:gsub(meta.sender, "Someone") or title
         body  = body  and body:gsub(meta.sender, "Someone") or body
@@ -328,7 +328,7 @@ function HKDT_Sanitize(kind, title, body, meta)
         body  = body  and body:gsub(meta.bnetName, "Someone") or body
       end
 
-      -- fallback agressivo: se teu title é tipo "Whisper from X" / "X says"
+      -- Aggressive fallback for titles like "Whisper from X" / "X says"
       title = title and title:gsub("from%s+.+$", "from Someone") or title
       title = title and title:gsub("^.+%s+says$", "Someone says") or title
     end
@@ -430,7 +430,7 @@ end
 -- Minimap Icon (LibDataBroker + LibDBIcon)
 -- =========================================================
 HKDT.MINIMAP_LDB_NAME = "HKDToasts"
-HKDT.MINIMAP_ICON_PATH = "Interface\\AddOns\\HKDToasts\\Media\\Icons\\Toast.tga"
+HKDT.MINIMAP_ICON_PATH = "Interface\\AddOns\\HKDToasts\\Media\\Icons\\toast.tga"
 
 local function GetDBSafe()
   return HKDT.DB or HKDToastsDB
@@ -528,18 +528,14 @@ function HKDT.GetKindColor(kind)
   if kind == "MAIL"    then return DB.colors.mail end
   if kind == "BNET"    then return DB.colors.bnet end
   if kind == "WHISPER" then return DB.colors.whisper end
-
   if kind == "VAULT"    then return DB.colors.vault end
   if kind == "SYSTEM"   then return DB.colors.daily end
   if kind == "REMINDER" then return DB.colors.reminder end
-
   if kind == "DURA70" then return DB.colors.dura70 end
   if kind == "DURA30" then return DB.colors.dura30 end
   if kind == "DURA10" then return DB.colors.dura10 end
-  
   if kind == "BAG90"   then return DB.colors.bag90 end
   if kind == "BAGFULL" then return DB.colors.bagfull end
-
   if kind == "FRIEND_ON"  then return DB.colors.friendOn end
   if kind == "FRIEND_OFF" then return DB.colors.friendOff end
   
@@ -560,8 +556,6 @@ function HKDT.ColoredText(kind, text)
   if not c then return tostring(text) end
   return HKDT.Hex(c.r, c.g, c.b) .. tostring(text) .. HKDT.C_RESET
 end
-
- 
 
 function HKDT.ColorDurabilityNumber(kind, text)
   if not text then return text end
@@ -625,7 +619,7 @@ function HKDT.PlayToastSoundForKind(kind)
 
   local channel = s.channel or "SFX"
 
--- Esses dois kits são chatos: em alguns clients só saem audíveis no Master
+-- These two kits are unreliable: on some clients they are only audible on Master
 if id == 111362 or id == 111363 then
   channel = "Master"
 end
